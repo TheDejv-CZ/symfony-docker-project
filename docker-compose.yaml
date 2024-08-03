@@ -1,0 +1,44 @@
+networks:
+  my-net:
+
+services:
+  apache:
+    build:
+      context: .
+      dockerfile: docker/apache/Dockerfile
+    volumes:
+      - .:/var/www/html
+      - ./apache2.conf:/etc/apache2/sites-enabled/000-default.conf
+    ports:
+      - "8000:80"
+    networks:
+      - my-net
+
+  db:
+    image: mysql:5.7
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: pw
+      MYSQL_DATABASE: symfony
+      MYSQL_USER: symfony
+      MYSQL_PASSWORD: 12345
+    networks:
+      - my-net
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "--silent" ]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: pw
+    networks:
+      - my-net
+    ports:
+      - "8080:80"

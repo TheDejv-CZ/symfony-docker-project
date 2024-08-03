@@ -1,0 +1,12 @@
+post_index:
+    path:       /posts
+    controller: App\Controller\PostController::index
+
+post_show:
+    path:       /post/{id}
+    controller: App\Controller\PostController::show
+    requirements:
+        id: \d+
+app_index:
+    path:       /
+    controller: App\Controller\IndexController::index

@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Posts{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <h1>Posts</h1>
+        <div class="row mb-3 row-cols-1 row-cols-md-3 g-4">
+            {% for post in pagination.items %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">ID: {{ post.id }} - {{ post.title }}</h5>
+                        <p class="card-text">{{ post.body|slice(0, 80) }}...</p>
+                        <a href="{{ path('post_show', {'id': post.id}) }}" class="btn btn-primary">Read more</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="navigation mb-3">
+            {{ knp_pagination_render(pagination, 'pagination.html.twig') }}
+        </div>
+    </div>
+{% endblock %}

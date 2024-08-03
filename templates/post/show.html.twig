@@ -1,0 +1,44 @@
+{# templates/post/show.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Post Details{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <h1>{{ post.title }}</h1>
+        <p>{{ post.body }}</p>
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <h3>Information about the Author</h3>
+                {% for address in post.user.info %}
+                <div class="row">
+                    <address class="col-auto">
+                        Created by: <b>{{ post.user.Name }}</b><br>
+                        Company: <b>{{ address.companyName }}</b><br>
+                        Company Catch Phrase: <b>{{ address.companycatchphrase }}</b><br>
+                        Company BS: <b>{{ address.companybs }}</b><br><br>
+                        Website: <a href="https://{{ post.user.website }}" target="_blank">{{ post.user.website }}</a><br>
+                        {{ address.street }}, {{ address.suite }}<br>
+                        {{ address.city }}, {{ address.zipcode }}<br>
+                    </address>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <h3>Comments</h3>
+        <div class="cards">
+            {% for comment in post.comments %}
+            <div class="card mb-3 shadow-lg">
+                <div class="card-body">
+                    <h5 class="card-title">{{ comment.name }}</h5>
+                    <p class="card-text">{{ comment.body }}</p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a class="card-link" href="mailto:{{ comment.email }}">{{ comment.email }}</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
