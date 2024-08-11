@@ -6,11 +6,19 @@ use App\Entity\Post;
 use App\Entity\Comment;
 use App\Entity\UserInfo;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\HttpClient\HttpClient;
-
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+#[AsCommand(
+    name: 'app:import-data',
+    description: 'Import data from JSONPlaceholder API.'
+)]
 class AppImportDataCommand extends Command
 {
     
@@ -22,70 +30,81 @@ class AppImportDataCommand extends Command
         $this->entityManager = $entityManager;
     }
     
-    protected function configure(): void
-    {
-        $this->setName('app:import-data');
-        $this->setDescription('Import data from JSONPlaceholder API.');
-    }
-    
     protected function execute(InputInterface $input, OutputInterface $output) :int
     {
         $client = HttpClient::create();
-        
-        $response = $client->request('GET', 'https://jsonplaceholder.typicode.com/users');
-        $users = $response->toArray();
         $userEntities = [];
-        foreach ($users as $userData) {
-            $user = new User();
-            $user->setName($userData['name']);
-            $user->setUsername($userData['username']);
-            $user->setEmail($userData['email']);
-            $user->setPhone($userData['phone']);
-            $user->setWebsite($userData['website']);
-            $this->entityManager->persist($user);
-            
-            $userInfo = new UserInfo();
-            $userInfo->setUser($user);
-            $userInfo->setStreet($userData['address']['street']);
-            $userInfo->setSuite($userData['address']['suite']);
-            $userInfo->setCity($userData['address']['city']);
-            $userInfo->setZipCode($userData['address']['zipcode']);
-            $userInfo->setSLat($userData['address']['geo']['lat']);
-            $userInfo->setSLng($userData['address']['geo']['lng']);
-            
-            $userInfo->setCompanyName($userData['company']['name']);
-            $userInfo->setCompanyCatchPhrase($userData['company']['catchPhrase']);
-            $userInfo->setCompanyBs($userData['company']['bs']);
-            $this->entityManager->persist($userInfo);
-            
-            $userEntities[$userData['id']] = $user;
-        }
-        $this->entityManager->flush();
-        
-        $response = $client->request('GET', 'https://jsonplaceholder.typicode.com/posts');
-        $posts = $response->toArray();
         $postEntities = [];
-        foreach ($posts as $postData) {
-            $post = new Post();
-            $post->setUser($userEntities[$postData['userId']]);
-            $post->setTitle($postData['title']);
-            $post->setBody($postData['body']);
-            $this->entityManager->persist($post);
-            $postEntities[$postData['id']] = $post;
+        try {
+            // import users
+            
+            $response = $client->request('GET', 'https://jsonplaceholder.typicode.com/users');
+            $users = $response->toArray();
+            foreach ($users as $userData) {
+                $user = (new User())
+                    ->setName($userData['name'])
+                    ->setUsername($userData['username'])
+                    ->setEmail($userData['email'])
+                    ->setPhone($userData['phone'])
+                    ->setWebsite($userData['website']);
+                
+                $this->entityManager->persist($user);
+                
+                $userInfo = (new UserInfo())
+                    ->setUser($user)
+                    ->setStreet($userData['address']['street'])
+                    ->setSuite($userData['address']['suite'])
+                    ->setCity($userData['address']['city'])
+                    ->setZipCode($userData['address']['zipcode'])
+                    ->setSLat($userData['address']['geo']['lat'])
+                    ->setSLng($userData['address']['geo']['lng'])
+                    ->setCompanyName($userData['company']['name'])
+                    ->setCompanyCatchPhrase($userData['company']['catchPhrase'])
+                    ->setCompanyBs($userData['company']['bs']);
+                
+                $this->entityManager->persist($userInfo);
+                
+                $userEntities[$userData['id']] = $user;
+            }
+            $this->entityManager->flush();
+            
+            // import posts
+            
+            $response = $client->request('GET', 'https://jsonplaceholder.typicode.com/posts');
+            $posts = $response->toArray();
+            
+            foreach ($posts as $postData) {
+                $post = (new Post())
+                    ->setUser($userEntities[$postData['userId']])
+                    ->setTitle($postData['title'])
+                    ->setBody($postData['body']);
+                
+                $this->entityManager->persist($post);
+                $postEntities[$postData['id']] = $post;
+            }
+            $this->entityManager->flush();
+            
+            // import comments
+            
+            $response = $client->request('GET', 'https://jsonplaceholder.typicode.com/comments');
+            $comments = $response->toArray();
+            
+            foreach ($comments as $commentData) {
+                $comment = (new Comment())
+                    ->setPost($postEntities[$commentData['postId']])
+                    ->setName($commentData['name'])
+                    ->setEmail($commentData['email'])
+                    ->setBody($commentData['body']);
+                $this->entityManager->persist($comment);
+            }
+            $this->entityManager->flush();
+        } catch (ClientExceptionInterface | RedirectionExceptionInterface | ServerExceptionInterface | TransportExceptionInterface $e) {
+            $output->writeln('<error>HTTP request failed: ' . $e->getMessage() . '</error>');
+            return Command::FAILURE;
+        } catch (\Exception $e) {
+            $output->writeln('<error>Data import failed: ' . $e->getMessage() . '</error>');
+            return Command::FAILURE;
         }
-        $this->entityManager->flush();
-        
-        $response = $client->request('GET', 'https://jsonplaceholder.typicode.com/comments');
-        $comments = $response->toArray();
-        foreach ($comments as $commentData) {
-            $comment = new Comment();
-            $comment->setPost($postEntities[$commentData['postId']]);
-            $comment->setName($commentData['name']);
-            $comment->setEmail($commentData['email']);
-            $comment->setBody($commentData['body']);
-            $this->entityManager->persist($comment);
-        }
-        $this->entityManager->flush();
         
         return Command::SUCCESS;
     }
